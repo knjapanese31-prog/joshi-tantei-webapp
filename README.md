@@ -1,5 +1,7 @@
 # 助詞探偵 / Joshi Tantei
 
+公開URL / Share URL: https://raw.githack.com/knjapanese31-prog/joshi-tantei-webapp/main/index.html
+
 A classroom-ready Japanese particle practice web app for learners. Students judge whether a Japanese sentence is correct, then choose the correct particle when needed.
 
 ## How to use in class
