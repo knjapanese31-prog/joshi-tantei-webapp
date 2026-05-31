@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>助詞探偵</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Noto Sans JP', sans-serif; }
+
+    .screen { display: none; }
+    .screen.active { display: flex; }
+
+    .wrong-particle {
+      display: inline-block;
+      background: #fee2e2;
+      border: 2px solid #ef4444;
+      color: #dc2626;
+      border-radius: 8px;
+      padding: 2px 10px;
+      margin: 0 2px;
+      font-size: 1.1em;
+      font-weight: 900;
+      vertical-align: middle;
+      line-height: 1.6;
+    }
+
+    .step1-btn {
+      flex: 1;
+      padding: 16px 8px;
+      border-radius: 16px;
+      font-size: 1.1em;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      border: 2px solid;
+    }
+    .step1-btn:active { transform: scale(0.95); }
+    .step1-btn.correct-btn {
+      background: #f0fdf4; border-color: #86efac; color: #16a34a;
+    }
+    .step1-btn.wrong-btn {
+      background: #fef2f2; border-color: #fca5a5; color: #dc2626;
+    }
+    .step1-btn.selected-correct { background: #22c55e; border-color: #22c55e; color: white; animation: popIn 0.3s ease; }
+    .step1-btn.selected-wrong { background: #ef4444; border-color: #ef4444; color: white; animation: shake 0.35s ease; }
+
+    ruby { ruby-align: center; }
+    rt { font-size: 0.55em; font-weight: 400; color: #6b7280; }
+
+    .choice-btn {
+      flex: 1;
+      min-width: 0;
+      background: #fff;
+      border: 2px solid #c7d2fe;
+      color: #4338ca;
+      border-radius: 14px;
+      padding: 14px 8px;
+      font-size: 1.3em;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .choice-btn:active { transform: scale(0.93); }
+    .choice-btn.correct {
+      background: #22c55e;
+      border-color: #22c55e;
+      color: white;
+      animation: popIn 0.3s ease;
+    }
+    .choice-btn.wrong {
+      background: #ef4444;
+      border-color: #ef4444;
+      color: white;
+      animation: shake 0.35s ease;
+    }
+    .choice-btn:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.35); }
+      100% { transform: scale(1); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .explanation-box {
+      animation: slideUp 0.35s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .level-btn.selected {
+      background: #6366f1;
+      color: white;
+      border-color: #6366f1;
+    }
+
+    .progress-bar-inner {
+      transition: width 0.4s ease;
+    }
+
+    .result-row { animation: fadeIn 0.3s ease both; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-indigo-50 min-h-screen flex flex-col">
+
+<!-- ========== START SCREEN ========== -->
+<div id="screen-start" class="screen active flex-col items-center justify-center min-h-screen px-6 py-10">
+  <div class="text-center mb-6">
+    <div class="text-6xl mb-3">🔍</div>
+    <h1 class="text-3xl font-black text-indigo-700 mb-1">助詞探偵</h1>
+    <p class="text-gray-500 text-sm">Find &amp; fix wrong Japanese particles!</p>
+    <p class="text-gray-400 text-xs mt-1">おかしな日本語を見つけよう</p>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-md p-5 w-full max-w-sm mb-4">
+    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">難易度 / Level</p>
+    <div class="flex gap-2 mb-3">
+      <button class="level-btn flex-1 py-3 rounded-xl border-2 border-indigo-200 text-indigo-600 font-bold text-sm transition selected" data-level="beginner">
+        <div>初級</div><div class="text-xs font-normal text-gray-400 mt-0.5">N5</div>
+      </button>
+      <button class="level-btn flex-1 py-3 rounded-xl border-2 border-indigo-200 text-indigo-600 font-bold text-sm transition" data-level="intermediate">
+        <div>中級</div><div class="text-xs font-normal text-gray-400 mt-0.5">N4</div>
+      </button>
+      <button class="level-btn flex-1 py-3 rounded-xl border-2 border-indigo-200 text-indigo-600 font-bold text-sm transition" data-level="advanced">
+        <div>上級</div><div class="text-xs font-normal text-gray-400 mt-0.5">N3</div>
+      </button>
+    </div>
+
+    <div class="bg-indigo-50 rounded-xl p-3">
+      <p class="font-bold text-xs text-indigo-700 mb-1">遊び方 / How to play</p>
+      <ul class="text-xs text-gray-600 leading-relaxed space-y-0.5">
+        <li>① 文が正しいか間違っているかを選ぶ</li>
+        <li>② 間違っている場合、正しい助詞を4択で選ぶ</li>
+        <li class="text-indigo-500 font-bold">※ 正しい文も混じっています！</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2 mb-4 w-full max-w-sm">
+    <span class="text-xs text-gray-500">ふりがな</span>
+    <button id="btn-furigana-toggle" class="relative inline-flex h-6 w-11 items-center rounded-full bg-indigo-500 transition" role="switch" aria-checked="true">
+      <span id="furigana-knob" class="inline-block h-4 w-4 translate-x-6 transform rounded-full bg-white transition"></span>
+    </button>
+    <span class="text-xs text-gray-400" id="furigana-label">ON</span>
+  </div>
+
+  <button id="btn-start" class="w-full max-w-sm bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition">
+    ゲームスタート 🕵️
+  </button>
+</div>
+
+<!-- ========== GAME SCREEN ========== -->
+<div id="screen-game" class="screen flex-col min-h-screen">
+  <!-- Header -->
+  <div class="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
+    <button id="btn-quit" class="text-gray-400 text-sm">やめる</button>
+    <div class="text-center">
+      <span id="score-display" class="font-black text-indigo-700 text-lg">0</span>
+      <span class="text-gray-400 text-sm"> / </span>
+      <span id="total-display" class="text-gray-400 text-sm">10</span>
+      <span class="text-gray-400 text-sm"> 問</span>
+    </div>
+    <div id="level-badge" class="text-xs font-bold bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">初級</div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="bg-gray-100 h-1.5">
+    <div id="progress-bar" class="progress-bar-inner bg-indigo-500 h-full" style="width:0%"></div>
+  </div>
+
+  <!-- Question area -->
+  <div class="flex-1 flex flex-col justify-between px-5 py-6">
+    <div>
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 text-center" id="question-instruction">
+        この文は正しいですか？
+      </p>
+
+      <div id="question-box" class="bg-white rounded-2xl shadow p-5 mb-4 text-center">
+        <p class="text-xs text-gray-400 mb-2" id="question-number">問題 1 / 10</p>
+        <div id="sentence-display" class="text-xl font-bold leading-loose text-gray-800"></div>
+      </div>
+
+      <!-- Step 1: correct or wrong? -->
+      <div id="step1-area" class="flex gap-3 mb-4">
+        <button id="btn-step1-ok" class="step1-btn correct-btn">✓ 正しい</button>
+        <button id="btn-step1-ng" class="step1-btn wrong-btn">✗ 間違っている</button>
+      </div>
+
+      <!-- Step 2: choose correct particle -->
+      <div id="choices-area" class="hidden flex gap-3 mb-4"></div>
+
+      <!-- Feedback / Explanation -->
+      <div id="feedback-box" class="hidden explanation-box">
+        <div id="feedback-correct" class="hidden bg-green-50 border-2 border-green-300 rounded-2xl p-4 text-center mb-3">
+          <p class="text-2xl mb-1">🎉</p>
+          <p class="font-black text-green-700 text-lg">正解！</p>
+        </div>
+        <div id="feedback-wrong" class="hidden bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-center mb-3">
+          <p class="text-2xl mb-1">🤔</p>
+          <p class="font-black text-red-600" id="feedback-wrong-msg">不正解…</p>
+          <p class="text-sm text-gray-500 mt-1" id="feedback-wrong-sub">もう一度チャレンジ！</p>
+        </div>
+
+        <div id="explanation-panel" class="hidden bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-4">
+          <p class="text-xs font-bold text-indigo-400 mb-2">✏️ 解説</p>
+          <p class="font-bold text-indigo-800 text-base mb-1" id="correction-display"></p>
+          <p class="text-sm text-gray-600" id="explanation-display"></p>
+        </div>
+      </div>
+    </div>
+
+    <button id="btn-next" class="hidden w-full bg-indigo-600 active:scale-95 text-white font-black text-base py-4 rounded-2xl shadow-md transition">
+      次の問題 →
+    </button>
+  </div>
+</div>
+
+<!-- ========== RESULT SCREEN ========== -->
+<div id="screen-result" class="screen flex-col min-h-screen px-5 py-8">
+  <div class="text-center mb-6">
+    <div id="result-emoji" class="text-5xl mb-2">🏆</div>
+    <h2 class="text-2xl font-black text-indigo-700">結果</h2>
+    <div class="mt-3 bg-white rounded-2xl shadow p-4 inline-block">
+      <span id="result-score" class="text-4xl font-black text-indigo-600">0</span>
+      <span class="text-gray-400"> / </span>
+      <span id="result-total" class="text-2xl font-bold text-gray-500">10</span>
+      <p class="text-sm text-gray-400 mt-1">問正解</p>
+    </div>
+    <p id="result-message" class="text-sm text-gray-500 mt-3"></p>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow p-4 mb-6 flex-1 overflow-y-auto" style="max-height:55vh">
+    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">振り返り / Review</p>
+    <div id="result-list" class="space-y-3"></div>
+  </div>
+
+  <!-- 助詞別スコア -->
+  <div id="particle-score-box" class="bg-white rounded-2xl shadow p-4 mb-4">
+    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">助詞別スコア / By particle</p>
+    <div id="particle-score-list" class="space-y-2"></div>
+  </div>
+
+  <div class="flex gap-3 mb-2">
+    <button id="btn-retry-modal" class="flex-1 bg-orange-500 active:scale-95 text-white font-bold py-3 rounded-2xl shadow transition text-sm hidden">
+      ❌ 復習する
+    </button>
+    <button id="btn-retry" class="flex-1 bg-indigo-600 active:scale-95 text-white font-black py-4 rounded-2xl shadow transition">
+      もう一度 🔄
+    </button>
+    <button id="btn-home" class="flex-1 bg-white border-2 border-indigo-200 active:scale-95 text-indigo-600 font-black py-4 rounded-2xl transition">
+      トップへ 🏠
+    </button>
+  </div>
+</div>
+
+<!-- ========== TUTORIAL MODAL ========== -->
+<div id="modal-tutorial" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end justify-center p-4">
+  <div class="bg-white rounded-3xl w-full max-w-sm overflow-y-auto" style="max-height:88vh">
+    <div class="p-6 pb-2">
+      <div class="text-center mb-4">
+        <div class="text-4xl mb-2">📖</div>
+        <h2 class="text-xl font-black text-indigo-700">助詞（じょし）とは？</h2>
+        <p class="text-xs text-gray-400 mt-1">What are Japanese particles?</p>
+      </div>
+      <p class="text-xs text-gray-600 leading-relaxed mb-4">
+        助詞は文の中で言葉の関係を示す小さな言葉です。<br>
+        <span class="text-gray-400">Particles show relationships between words in a sentence.</span>
+      </p>
+      <div class="space-y-2 mb-5">
+        <div class="flex items-center gap-3 bg-indigo-50 rounded-xl p-3">
+          <span class="text-xl font-black text-indigo-600 w-8 text-center">は</span>
+          <div><p class="text-xs font-bold text-gray-700">topic marker</p><p class="text-xs text-gray-500">私<b>は</b>学生です。<span class="text-gray-400 ml-1">I am a student.</span></p></div>
+        </div>
+        <div class="flex items-center gap-3 bg-purple-50 rounded-xl p-3">
+          <span class="text-xl font-black text-purple-600 w-8 text-center">が</span>
+          <div><p class="text-xs font-bold text-gray-700">subject / ability</p><p class="text-xs text-gray-500">猫<b>が</b>好きです。<span class="text-gray-400 ml-1">I like cats.</span></p></div>
+        </div>
+        <div class="flex items-center gap-3 bg-blue-50 rounded-xl p-3">
+          <span class="text-xl font-black text-blue-600 w-8 text-center">を</span>
+          <div><p class="text-xs font-bold text-gray-700">direct object</p><p class="text-xs text-gray-500">コーヒー<b>を</b>飲みます。<span class="text-gray-400 ml-1">I drink coffee.</span></p></div>
+        </div>
+        <div class="flex items-center gap-3 bg-green-50 rounded-xl p-3">
+          <span class="text-xl font-black text-green-600 w-8 text-center">に</span>
+          <div><p class="text-xs font-bold text-gray-700">time / destination</p><p class="text-xs text-gray-500">3時<b>に</b>来ます。<span class="text-gray-400 ml-1">I'll come at 3.</span></p></div>
+        </div>
+        <div class="flex items-center gap-3 bg-yellow-50 rounded-xl p-3">
+          <span class="text-xl font-black text-yellow-600 w-8 text-center">で</span>
+          <div><p class="text-xs font-bold text-gray-700">location / means</p><p class="text-xs text-gray-500">図書館<b>で</b>勉強します。<span class="text-gray-400 ml-1">I study at the library.</span></p></div>
+        </div>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+        <p class="text-xs font-bold text-amber-700 mb-1">🕵️ このゲームでは…</p>
+        <p class="text-xs text-gray-600 leading-relaxed">文の中の助詞が正しいかどうかを判断して、間違っている場合は正しい助詞を選んでください。<br><span class="text-gray-400">Decide if each sentence is correct. If wrong, choose the right particle!</span></p>
+      </div>
+    </div>
+    <div class="px-6 pb-6 space-y-2">
+      <button id="btn-tutorial-start" class="w-full bg-indigo-600 active:scale-95 text-white font-black py-4 rounded-2xl text-base transition">
+        わかった！Let's play 🕵️
+      </button>
+      <button id="btn-tutorial-skip" class="w-full text-gray-400 text-xs py-2">
+        もう見ない / Don't show again
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== RETRY WRONG MODAL ========== -->
+<div id="modal-retry" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
+  <div class="bg-white rounded-3xl w-full max-w-sm p-6 text-center">
+    <div class="text-4xl mb-3">📝</div>
+    <h3 class="text-lg font-black text-indigo-700 mb-1">復習モード</h3>
+    <p class="text-sm text-gray-500 mb-1" id="retry-count-msg">間違えた問題を復習します</p>
+    <p class="text-xs text-gray-400 mb-5">Review your incorrect answers</p>
+    <button id="btn-retry-wrong" class="w-full bg-red-500 active:scale-95 text-white font-black py-4 rounded-2xl mb-2 transition">
+      ❌ 間違えた問題を復習する
+    </button>
+    <button id="btn-retry-close" class="w-full text-gray-400 text-sm py-2">
+      やめる / Cancel
+    </button>
+  </div>
+</div>
+<script>
+// ==================== QUESTION DATA ====================
+const QUESTIONS = {
+  beginner: [
+    {
+      parts: ["私は京都", {p:"を", wrong:true}, "住んでいます"],
+      correct: "に",
+      explanation: "「住む」には場所を表す「に」を使います。「を」は動作の対象や通過に使います。"
+    },
+    {
+      parts: ["毎朝コーヒー", {p:"が", wrong:true}, "飲みます"],
+      correct: "を",
+      explanation: "「飲む」などの他動詞の目的語には「を」を使います。(Other-verb object → を)"
+    },
+    {
+      parts: ["電車", {p:"で", wrong:true}, "乗って学校へ行きます"],
+      correct: "に",
+      explanation: "乗り物に「乗る」場合は「に乗る」を使います。「で」は手段（電車で行く）に使います。(Ride → に; Means → で)"
+    },
+    {
+      parts: ["友達", {p:"は", wrong:true}, "プレゼントをもらいました"],
+      correct: "に",
+      explanation: "「もらう」の相手（くれる人）には「に」または「から」を使います。(Receive from → に/から)"
+    },
+    {
+      parts: ["図書館", {p:"が", wrong:true}, "本を読みました"],
+      correct: "で",
+      explanation: "動作が行われる場所には「で」を使います。(Action location → で)"
+    },
+    {
+      parts: ["日曜日", {p:"で", wrong:true}, "映画を見に行きます"],
+      correct: "に",
+      explanation: "時を表す名詞（曜日・時刻など）には「に」を使います。(Time expressions → に)"
+    },
+    {
+      parts: ["日本語", {p:"を", wrong:true}, "上手になりたいです"],
+      correct: "が",
+      explanation: "「上手だ」「好きだ」などの形容詞の対象には「が」を使います。(Adj. like/good → が)"
+    },
+    {
+      parts: ["先生", {p:"で", wrong:true}, "質問があります"],
+      correct: "に",
+      explanation: "「〜に質問がある」「〜に聞く」など、向かう相手には「に」を使います。(Ask/tell someone → に)(Person you approach → に)"
+    },
+    {
+      parts: ["窓", {p:"に", wrong:true}, "開けてください"],
+      correct: "を",
+      explanation: "「開ける」は他動詞で、目的語（何を開けるか）には「を」を使います。(Open = を + object)"
+    },
+    {
+      parts: ["手", {p:"に", wrong:true}, "顔を洗います"],
+      correct: "で",
+      explanation: "「手で洗う」のように動作の道具・手段には「で」を使います。(Tool/means → で)"
+    },
+    {
+      parts: ["公園", {p:"に", wrong:true}, "サッカーをします"],
+      correct: "で",
+      explanation: "動作が行われる場所には「で」を使います。(Action location → で)「に」は存在・目的地に使います。(Action location → で; Destination → に)"
+    },
+    {
+      parts: ["バス", {p:"に", wrong:true}, "駅まで行きます"],
+      correct: "で",
+      explanation: "交通手段（〜で行く）には「で」を使います。「に」は乗り物に乗る動作（バスに乗る）に使います。(Transport means → で; Board a vehicle → に)"
+    },
+    {
+      parts: ["三時", {p:"で", wrong:true}, "授業が始まります"],
+      correct: "に",
+      explanation: "時刻を表す名詞には「に」を使います。「三時に始まる」が正しい形です。"
+    },
+    {
+      parts: ["水", {p:"が", wrong:true}, "一杯飲みました"],
+      correct: "を",
+      explanation: "「飲む」の目的語（何を飲むか）には「を」を使います。(Drink = を + object)"
+    },
+    {
+      parts: ["兄", {p:"が", wrong:true}, "本をもらいました"],
+      correct: "に",
+      explanation: "「もらう」の相手には「に」または「から」を使います。"
+    },
+    {
+      parts: ["ペン", {p:"に", wrong:true}, "手紙を書きます"],
+      correct: "で",
+      explanation: "書く道具・手段には「で」を使います（ペンで書く）。(Writing tool → で)"
+    },
+    {
+      parts: ["公園", {p:"で", wrong:true}, "行きます"],
+      correct: "に",
+      explanation: "移動の目的地には「に」または「へ」を使います。(Destination → に/へ)「で」は動作の場所に使います。"
+    },
+    {
+      parts: ["猫", {p:"に", wrong:true}, "かわいいです"],
+      correct: "が",
+      explanation: "「かわいい」などの形容詞の主語には「が」を使います。(Adj. subject → が)"
+    },
+    {
+      parts: ["弟", {p:"で", wrong:true}, "お菓子をあげました"],
+      correct: "に",
+      explanation: "「あげる」の受け取り相手には「に」を使います。(Give to → に)"
+    },
+    {
+      parts: ["午後三時", {p:"で", wrong:true}, "待ち合わせしましょう"],
+      correct: "に",
+      explanation: "時刻・時点を表す場合は「に」を使います。"
+    },
+    {
+      parts: ["学校", {p:"を", wrong:true}, "友達と話しました"],
+      correct: "で",
+      explanation: "動作が行われる場所には「で」を使います（学校で話す）。"
+    },
+    {
+      parts: ["熱", {p:"で", wrong:true}, "あるので病院へ行きます"],
+      correct: "が",
+      explanation: "「熱がある」「頭が痛い」のように状態・症状の主語には「が」を使います。"
+    },
+    {
+      parts: ["先週の日曜日", {p:"で", wrong:true}, "海へ行きました"],
+      correct: "に",
+      explanation: "日時（〜に行く）には「に」を使います。「で」は場所や手段に使います。"
+    },
+    {
+      parts: ["音楽", {p:"に", wrong:true}, "聴きながら勉強します"],
+      correct: "を",
+      explanation: "「聴く」の目的語（何を聴くか）には「を」を使います。"
+    },
+    {
+      parts: ["テーブル", {p:"が", wrong:true}, "コップを置きました"],
+      correct: "に",
+      explanation: "物を置く場所・着点には「に」を使います（テーブルに置く）。"
+    },
+    {
+      parts: ["雨", {p:"で", wrong:true}, "降っています"],
+      correct: "が",
+      explanation: "「雨が降る」のように自然現象の主語には「が」を使います。(Natural phenomenon subject → が)"
+    },
+    {
+      parts: ["姉", {p:"を", wrong:true}, "相談しました"],
+      correct: "に",
+      explanation: "「相談する」の相手には「に」を使います（〜に相談する）。(Consult with → に)"
+    },
+    {
+      parts: ["スーパー", {p:"に", wrong:true}, "野菜を買いました"],
+      correct: "で",
+      explanation: "買い物など動作が行われる場所には「で」を使います（スーパーで買う）。(Shopping location → で)"
+    },
+    {
+      parts: ["この本", {p:"に", wrong:true}, "読んだことがありますか"],
+      correct: "を",
+      explanation: "「読む」は他動詞で、目的語には「を」を使います（この本を読む）。(Read = を + book)"
+    },
+    {
+      parts: ["部屋", {p:"が", wrong:true}, "掃除しました"],
+      correct: "を",
+      explanation: "「掃除する」の目的語（どこを掃除するか）には「を」を使います。(Clean = を + place)"
+    },
+    {
+      parts: ["六時", {p:"に"}, "起きます"],
+      correct: "に",
+      explanation: "時刻を表す「に」は正しい使い方です。「六時に起きる」はそのまま正しい文です。",
+      tricky: true
+    },
+    {
+      parts: ["電車", {p:"で"}, "大阪に行きました"],
+      correct: "で",
+      explanation: "交通手段を表す「で」（電車で行く）は正しい使い方です。この文はそのまま正しい文です。",
+      tricky: true
+    },
+    {
+      parts: ["図書館", {p:"で"}, "本を読みます"],
+      correct: "で",
+      explanation: "動作が行われる場所を表す「で」（図書館で読む）は正しい使い方です。この文はそのまま正しい文です。",
+      tricky: true
+    },
+  ],
+  intermediate: [
+    {
+      parts: ["彼女は歌う", {p:"の", wrong:true}, "得意です"],
+      correct: "が",
+      explanation: "「得意だ」の対象には「が」を使います（歌うのが得意）。"
+    },
+    {
+      parts: ["この映画", {p:"を", wrong:true}, "感動しました"],
+      correct: "に",
+      explanation: "「感動する」の対象には「に」を使います（〜に感動する）。"
+    },
+    {
+      parts: ["お金", {p:"が", wrong:true}, "払ってください"],
+      correct: "を",
+      explanation: "「払う」などの他動詞の目的語には「を」を使います。"
+    },
+    {
+      parts: ["先月から東京", {p:"で", wrong:true}, "住んでいます"],
+      correct: "に",
+      explanation: "「住む」には居場所を表す「に」を使います。「で」は動作の場所に使います。"
+    },
+    {
+      parts: ["私は妹", {p:"で", wrong:true}, "本をあげました"],
+      correct: "に",
+      explanation: "「あげる」「渡す」など授受動詞の受け取り手には「に」を使います。"
+    },
+    {
+      parts: ["子供のころ", {p:"を", wrong:true}, "よく川で泳ぎました"],
+      correct: "は",
+      explanation: "「〜のころは」のように時間的な話題を提示するときは「は」を使います。"
+    },
+    {
+      parts: ["彼女は英語", {p:"が", wrong:true}, "話しています"],
+      correct: "を",
+      explanation: "「話す」は他動詞なので目的語に「を」を使います。可能形（話せる）なら「が」も可。"
+    },
+    {
+      parts: ["体", {p:"で", wrong:true}, "悪いので休みます"],
+      correct: "が",
+      explanation: "「体が悪い」のように状態を表す場合には「が」を使います。"
+    },
+    {
+      parts: ["彼は仕事", {p:"が", wrong:true}, "辞めました"],
+      correct: "を",
+      explanation: "「辞める」は他動詞で、目的語には「を」を使います（仕事を辞める）。"
+    },
+    {
+      parts: ["テスト結果", {p:"を", wrong:true}, "がっかりしました"],
+      correct: "に",
+      explanation: "「がっかりする」「驚く」など感情動詞の原因・対象には「に」を使います。"
+    },
+    {
+      parts: ["この問題", {p:"に", wrong:true}, "答えを知っています"],
+      correct: "の",
+      explanation: "「この問題の答え」のように所属・関係を表すには「の」を使います。"
+    },
+    {
+      parts: ["彼女と映画", {p:"が", wrong:true}, "見に行きました"],
+      correct: "を",
+      explanation: "「見る」の目的語（何を見るか）には「を」を使います。"
+    },
+    {
+      parts: ["台風", {p:"に", wrong:true}, "理由に試合が中止になりました"],
+      correct: "を",
+      explanation: "「〜を理由に」は理由を示す慣用表現です。「に」ではなく「を」を使います。"
+    },
+    {
+      parts: ["彼の考え方", {p:"が", wrong:true}, "興味があります"],
+      correct: "に",
+      explanation: "「興味がある」の対象には「に」を使います（〜に興味がある）。"
+    },
+    {
+      parts: ["夢", {p:"を", wrong:true}, "向かって頑張っています"],
+      correct: "に",
+      explanation: "「〜に向かって」は目標・方向を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["私は彼女", {p:"を", wrong:true}, "似ていると思います"],
+      correct: "に",
+      explanation: "「〜に似る・似ている」の比較対象には「に」を使います。"
+    },
+    {
+      parts: ["来年", {p:"で", wrong:true}, "留学するつもりです"],
+      correct: "に",
+      explanation: "時点を表す名詞には「に」を使います（来年に留学する）。"
+    },
+    {
+      parts: ["部長", {p:"が", wrong:true}, "報告しました"],
+      correct: "に",
+      explanation: "「報告する」「連絡する」など伝達動詞の相手には「に」を使います。"
+    },
+    {
+      parts: ["その映画は三時間", {p:"に", wrong:true}, "あります"],
+      correct: "も",
+      explanation: "数量・時間の長さを強調する場合は「も」を使います（三時間もある）。"
+    },
+    {
+      parts: ["彼女はピアノ", {p:"が", wrong:true}, "練習しています"],
+      correct: "を",
+      explanation: "「練習する」は他動詞で、目的語には「を」を使います。"
+    },
+    {
+      parts: ["この仕事は三人", {p:"が", wrong:true}, "できます"],
+      correct: "で",
+      explanation: "必要な人数・条件を示す場合は「で」を使います（三人でできる）。"
+    },
+    {
+      parts: ["子供", {p:"が", wrong:true}, "お菓子を食べさせました"],
+      correct: "に",
+      explanation: "使役文で、させる相手（行為者）には「に」を使います（子供に食べさせる）。"
+    },
+    {
+      parts: ["この町", {p:"が", wrong:true}, "住んで十年になります"],
+      correct: "に",
+      explanation: "「住む」の居場所には「に」を使います（この町に住む）。"
+    },
+    {
+      parts: ["彼女は料理", {p:"が", wrong:true}, "作ることが好きです"],
+      correct: "を",
+      explanation: "「作る」は他動詞なので目的語に「を」を使います（料理を作る）。"
+    },
+    {
+      parts: ["電車の中", {p:"が", wrong:true}, "音楽を聴いています"],
+      correct: "で",
+      explanation: "動作が行われる場所には「で」を使います（電車の中で聴く）。"
+    },
+    {
+      parts: ["彼は大学", {p:"に", wrong:true}, "卒業しました"],
+      correct: "を",
+      explanation: "「卒業する」の対象には「を」を使います（大学を卒業する）。"
+    },
+    {
+      parts: ["友達", {p:"を", wrong:true}, "電話しました"],
+      correct: "に",
+      explanation: "「電話する」「メールする」など連絡動詞の相手には「に」を使います。"
+    },
+    {
+      parts: ["彼女は批判", {p:"が", wrong:true}, "めげず努力を続けた"],
+      correct: "に",
+      explanation: "「〜にめげず」「〜に負けず」の対象には「に」を使います。"
+    },
+    {
+      parts: ["先生", {p:"が", wrong:true}, "教えてもらいました"],
+      correct: "に",
+      explanation: "「〜に教えてもらう」の相手（くれた人）には「に」を使います。"
+    },
+    {
+      parts: ["彼女はギター", {p:"が", wrong:true}, "上手に弾きます"],
+      correct: "を",
+      explanation: "「弾く」は他動詞で、目的語には「を」を使います（ギターを弾く）。"
+    },
+    {
+      parts: ["試験", {p:"に"}, "合格しました"],
+      correct: "に",
+      explanation: "「試験に合格する」「試験に落ちる」はどちらも「に」を使います。この文はそのまま正しい文です。",
+      tricky: true
+    },
+    {
+      parts: ["バイオリン", {p:"が"}, "弾けますか"],
+      correct: "が",
+      explanation: "「〜が弾ける・話せる」のように可能の意味を表す場合は「が」を使います。この文はそのまま正しい文です。",
+      tricky: true
+    },
+    {
+      parts: ["東京", {p:"に"}, "三年間住んでいます"],
+      correct: "に",
+      explanation: "「住む」の居場所には「に」を使います。「東京に住む」は正しい使い方です。この文はそのまま正しい文です。",
+      tricky: true
+    },
+  ],
+  advanced: [
+    {
+      parts: ["この問題は私", {p:"で", wrong:true}, "は解けません"],
+      correct: "に",
+      explanation: "「〜には〜できない」の形で、可能・不可能の主体を表す場合は「に」を使います。"
+    },
+    {
+      parts: ["彼女が来る", {p:"の", wrong:true}, "待っています"],
+      correct: "を",
+      explanation: "「待つ」の目的語には「を」を使います（来るのを待つ）。"
+    },
+    {
+      parts: ["子供たち", {p:"は", wrong:true}, "公園で遊ばせました"],
+      correct: "を",
+      explanation: "使役文で行動させる対象には「を」または「に」を使います。許可の意味では「を」がより自然です。"
+    },
+    {
+      parts: ["この仕事は経験者", {p:"で", wrong:true}, "しかできません"],
+      correct: "に",
+      explanation: "「〜にしかできない」の形で、限定された主体には「に」を使います。"
+    },
+    {
+      parts: ["来週", {p:"まで", wrong:true}, "出張から帰ります"],
+      correct: "に",
+      explanation: "帰る時点を示す場合は「に」を使います。「まで」は動作・状態が続く期間の終わりを表します。"
+    },
+    {
+      parts: ["彼女の話", {p:"を", wrong:true}, "よると、明日は雨らしい"],
+      correct: "に",
+      explanation: "「〜によると」は情報源を示す慣用表現です。「を」ではなく「に」を使います。"
+    },
+    {
+      parts: ["彼は責任", {p:"で", wrong:true}, "押しつぶされそうです"],
+      correct: "に",
+      explanation: "「〜に押しつぶされる」のように、力の源・原因には「に」を使います。"
+    },
+    {
+      parts: ["彼女の意見", {p:"が", wrong:true}, "対して反論しました"],
+      correct: "に",
+      explanation: "「〜に対して」は対象・相手を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["実力", {p:"が", wrong:true}, "よって評価が決まります"],
+      correct: "に",
+      explanation: "「〜によって」は手段・原因・基準を表す表現で「に」を使います。"
+    },
+    {
+      parts: ["彼の成功", {p:"が", wrong:true}, "嫉妬を感じた"],
+      correct: "に",
+      explanation: "「〜に嫉妬する・感じる」のように感情の対象には「に」を使います。"
+    },
+    {
+      parts: ["計画通り", {p:"で", wrong:true}, "進むかどうか不安です"],
+      correct: "に",
+      explanation: "「〜通りに進む」のように基準・様子を表す場合は「に」を使います。"
+    },
+    {
+      parts: ["新しいシステム", {p:"を", wrong:true}, "移行するのに時間がかかった"],
+      correct: "に",
+      explanation: "「〜に移行する」は移行先・変化の方向を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["この事態", {p:"が", wrong:true}, "対処するのは難しい"],
+      correct: "に",
+      explanation: "「〜に対処する」の対象には「に」を使います。"
+    },
+    {
+      parts: ["社長", {p:"が", wrong:true}, "代わって挨拶します"],
+      correct: "に",
+      explanation: "「〜に代わって」は代理を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["会議の結論", {p:"が", wrong:true}, "基づいて行動します"],
+      correct: "に",
+      explanation: "「〜に基づく」は根拠・依拠を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["彼女は複数の仕事", {p:"に", wrong:true}, "掛け持ちしています"],
+      correct: "を",
+      explanation: "「掛け持ちする」の目的語（何を掛け持ちするか）には「を」を使います。"
+    },
+    {
+      parts: ["新入社員", {p:"に", wrong:true}, "教育するのは大変です"],
+      correct: "を",
+      explanation: "「教育する」の対象（誰を教育するか）には「を」を使います。"
+    },
+    {
+      parts: ["予算の関係", {p:"が", wrong:true}, "より規模を縮小しました"],
+      correct: "に",
+      explanation: "「〜により・によって」は理由・原因を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["彼は自分の考え", {p:"が", wrong:true}, "固執しています"],
+      correct: "に",
+      explanation: "「〜に固執する」「〜に執着する」の対象には「に」を使います。"
+    },
+    {
+      parts: ["彼女は社会問題", {p:"が", wrong:true}, "取り組んでいます"],
+      correct: "に",
+      explanation: "「〜に取り組む」の対象には「に」を使います。"
+    },
+    {
+      parts: ["その発言は誤解", {p:"が", wrong:true}, "基づいています"],
+      correct: "に",
+      explanation: "「〜に基づく」は根拠を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["この条件", {p:"が", wrong:true}, "限っては例外を認めます"],
+      correct: "に",
+      explanation: "「〜に限って・に限り」は限定を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["彼女の行動は周囲", {p:"が", wrong:true}, "影響を与えた"],
+      correct: "に",
+      explanation: "「〜に影響を与える」の対象には「に」を使います。"
+    },
+    {
+      parts: ["試験合格", {p:"が", wrong:true}, "向けて猛勉強しています"],
+      correct: "に",
+      explanation: "「〜に向けて」は目標・方向を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["この法律は国民全体", {p:"が", wrong:true}, "関わります"],
+      correct: "に",
+      explanation: "「〜に関わる」の対象には「に」を使います。"
+    },
+    {
+      parts: ["彼は周囲の反対", {p:"が", wrong:true}, "もかかわらず挑戦した"],
+      correct: "に",
+      explanation: "「〜にもかかわらず」は逆接を示す慣用表現で「に」を使います。"
+    },
+    {
+      parts: ["成功", {p:"が", wrong:true}, "つながる努力をしています"],
+      correct: "に",
+      explanation: "「〜につながる」の帰結・方向には「に」を使います。"
+    },
+    {
+      parts: ["彼女は問題の解決", {p:"が", wrong:true}, "向けて話し合いをした"],
+      correct: "に",
+      explanation: "「〜に向けて」は目標・方向を示す表現で「に」を使います。"
+    },
+    {
+      parts: ["その決断は後悔", {p:"が", wrong:true}, "値するものだった"],
+      correct: "に",
+      explanation: "「〜に値する」（それにふさわしい）の基準には「に」を使います。"
+    },
+    {
+      parts: ["彼女の努力は誰もが認める", {p:"に"}, "値します"],
+      correct: "に",
+      explanation: "「〜に値する」の基準には「に」を使います。この文はそのまま正しい文です。",
+      tricky: true
+    },
+  ]
+};
+
+// ==================== APP STATE ====================
+const state = {
+  level: 'beginner',
+  questions: [],
+  current: 0,
+  score: 0,
+  answered: false,
+  hadWrong: false,
+  history: [],
+  furigana: true,
+};
+
+// ==================== HELPERS ====================
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ==================== FURIGANA ====================
+const FURIGANA_MAP = [
+  // 4+ chars first (longest match)
+  ['新入社員','しんにゅうしゃいん'],['社会問題','しゃかいもんだい'],['待ち合わせ','まちあわせ'],
+  ['図書館','としょかん'],['日曜日','にちようび'],['日本語','にほんご'],
+  ['毎朝','まいあさ'],['電車','でんしゃ'],['学校','がっこう'],
+  ['友達','ともだち'],['先生','せんせい'],['公園','こうえん'],
+  ['音楽','おんがく'],['映画','えいが'],['病院','びょういん'],
+  ['試験','しけん'],['勉強','べんきょう'],['料理','りょうり'],
+  ['練習','れんしゅう'],['大学','だいがく'],['卒業','そつぎょう'],
+  ['電話','でんわ'],['東京','とうきょう'],['子供','こども'],
+  ['英語','えいご'],['仕事','しごと'],['地震','じしん'],
+  ['来年','らいねん'],['来週','らいしゅう'],['出張','しゅっちょう'],
+  ['責任','せきにん'],['実力','じつりょく'],['評価','ひょうか'],
+  ['成功','せいこう'],['嫉妬','しっと'],['計画','けいかく'],
+  ['教育','きょういく'],['予算','よさん'],['規模','きぼ'],
+  ['固執','こしつ'],['条件','じょうけん'],['行動','こうどう'],
+  ['影響','えいきょう'],['合格','ごうかく'],['努力','どりょく'],
+  ['法律','ほうりつ'],['国民','こくみん'],['反対','はんたい'],
+  ['周囲','しゅうい'],['決断','けつだん'],['後悔','こうかい'],
+  ['報告','ほうこく'],['経験者','けいけんしゃ'],['問題','もんだい'],
+  ['得意','とくい'],['感動','かんどう'],['興味','きょうみ'],
+  ['部長','ぶちょう'],['先月','せんげつ'],['先週','せんしゅう'],
+  ['午後','ごご'],['三時','さんじ'],['京都','きょうと'],
+  ['窓','まど'],['弟','おとうと'],['姉','あね'],['兄','あに'],
+  ['母','はは'],['猫','ねこ'],['雨','あめ'],['熱','ねつ'],
+  ['海','うみ'],['夢','ゆめ'],['体','からだ'],['住','す'],
+  ['私','わたし'],['彼女','かのじょ'],['野菜','やさい'],
+  ['部屋','へや'],['社長','しゃちょう'],
+];
+
+function addRuby(text) {
+  if (!state.furigana) return text;
+  let result = text;
+  for (const [kanji, reading] of FURIGANA_MAP) {
+    result = result.split(kanji).join(`<ruby>${kanji}<rt>${reading}</rt></ruby>`);
+  }
+  return result;
+}
+
+// ==================== DISTRACTOR POOL ====================
+const ALL_PARTICLES = ['は','が','を','に','で','へ','と','から','まで','より','の','も','にも','では','には'];
+
+function makeChoices(correct) {
+  const pool = ALL_PARTICLES.filter(p => p !== correct);
+  return shuffle([correct, ...shuffle(pool).slice(0, 3)]);
+}
+
+// ==================== RENDER QUESTION ====================
+function renderSentence(q, revealWrong) {
+  const container = document.getElementById('sentence-display');
+  container.innerHTML = '';
+  q.parts.forEach(part => {
+    if (typeof part === 'string') {
+      const span = document.createElement('span');
+      span.innerHTML = addRuby(part);
+      container.appendChild(span);
+    } else {
+      if (revealWrong && part.wrong) {
+        const span = document.createElement('span');
+        span.className = 'wrong-particle';
+        span.textContent = part.p;
+        container.appendChild(span);
+      } else {
+        container.appendChild(document.createTextNode(part.p));
+      }
+    }
+  });
+}
+
+function renderQuestion() {
+  const q = state.questions[state.current];
+  const total = state.questions.length;
+
+  document.getElementById('question-number').textContent = `問題 ${state.current + 1} / ${total}`;
+  document.getElementById('score-display').textContent = state.score;
+  document.getElementById('progress-bar').style.width = `${(state.current / total) * 100}%`;
+  document.getElementById('question-instruction').textContent = 'この文は正しいですか？';
+
+  renderSentence(q, false);
+
+  // Show step1, hide step2
+  document.getElementById('step1-area').classList.remove('hidden');
+  document.getElementById('btn-step1-ok').className = 'step1-btn correct-btn';
+  document.getElementById('btn-step1-ok').disabled = false;
+  document.getElementById('btn-step1-ng').className = 'step1-btn wrong-btn';
+  document.getElementById('btn-step1-ng').disabled = false;
+  document.getElementById('choices-area').classList.add('hidden');
+  document.getElementById('choices-area').innerHTML = '';
+
+  document.getElementById('feedback-box').classList.add('hidden');
+  document.getElementById('feedback-correct').classList.add('hidden');
+  document.getElementById('feedback-wrong').classList.add('hidden');
+  document.getElementById('explanation-panel').classList.add('hidden');
+  document.getElementById('btn-next').classList.add('hidden');
+
+  state.answered = false;
+  state.hadWrong = false;
+}
+
+// ==================== HANDLE STEP 1 ====================
+function handleStep1(userSaysCorrect) {
+  const q = state.questions[state.current];
+  const sentenceIsCorrect = !!q.tricky;
+
+  document.getElementById('btn-step1-ok').disabled = true;
+  document.getElementById('btn-step1-ng').disabled = true;
+
+  const answeredRight = userSaysCorrect === sentenceIsCorrect;
+
+  if (sentenceIsCorrect) {
+    // Tricky question: sentence IS correct
+    if (userSaysCorrect) {
+      // ✅ Correct!
+      state.answered = true;
+      state.score++;
+      document.getElementById('btn-step1-ok').classList.add('selected-correct');
+      document.getElementById('feedback-box').classList.remove('hidden');
+      document.getElementById('feedback-correct').classList.remove('hidden');
+      document.getElementById('score-display').textContent = state.score;
+      showExplanation(q);
+      state.history.push({ q, correct: true });
+    } else {
+      // ❌ Wrong: said 間違っている but sentence is fine
+      state.hadWrong = true;
+      document.getElementById('btn-step1-ng').classList.add('selected-wrong');
+      document.getElementById('feedback-box').classList.remove('hidden');
+      document.getElementById('feedback-wrong').classList.remove('hidden');
+      document.getElementById('feedback-wrong-msg').textContent = '実はこの文は正しいです！';
+      document.getElementById('feedback-wrong-sub').textContent = '助詞をよく見てみましょう。';
+      showExplanation(q);
+      state.history.push({ q, correct: false });
+    }
+  } else {
+    // Normal question: sentence is WRONG
+    if (userSaysCorrect) {
+      // ❌ Wrong: said 正しい but sentence has error
+      state.hadWrong = true;
+      document.getElementById('btn-step1-ok').classList.add('selected-wrong');
+      document.getElementById('feedback-box').classList.remove('hidden');
+      document.getElementById('feedback-wrong').classList.remove('hidden');
+      document.getElementById('feedback-wrong-msg').textContent = '実は間違っています…';
+      document.getElementById('feedback-wrong-sub').textContent = '助詞をよく見てみましょう！';
+      renderSentence(q, true);
+      showExplanation(q);
+      state.history.push({ q, correct: false });
+    } else {
+      // ✅ Correct: noticed the error → proceed to step 2
+      document.getElementById('btn-step1-ng').classList.add('selected-correct');
+      document.getElementById('question-instruction').textContent = '正しい助詞はどれ？';
+      renderSentence(q, true);
+      const choicesArea = document.getElementById('choices-area');
+      choicesArea.innerHTML = '';
+      const choices = makeChoices(q.correct);
+      choices.forEach(choice => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = choice;
+        btn.addEventListener('click', () => handleChoiceClick(btn, choice, q));
+        choicesArea.appendChild(btn);
+      });
+      choicesArea.classList.remove('hidden');
+      choicesArea.classList.add('flex');
+    }
+  }
+}
+
+// ==================== HANDLE STEP 2 ====================
+function handleChoiceClick(btn, choice, q) {
+  if (state.answered) return;
+
+  const isCorrect = choice === q.correct;
+  document.getElementById('feedback-box').classList.remove('hidden');
+
+  if (isCorrect) {
+    state.answered = true;
+    if (!state.hadWrong) state.score++;
+    btn.classList.add('correct');
+    document.querySelectorAll('.choice-btn').forEach(b => { if (b !== btn) b.disabled = true; });
+    document.getElementById('feedback-correct').classList.remove('hidden');
+    document.getElementById('feedback-wrong').classList.add('hidden');
+    showExplanation(q);
+    document.getElementById('score-display').textContent = state.score;
+    state.history.push({ q, correct: !state.hadWrong });
+  } else {
+    state.hadWrong = true;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    document.getElementById('feedback-wrong').classList.remove('hidden');
+    document.getElementById('feedback-correct').classList.add('hidden');
+    document.getElementById('feedback-wrong-msg').textContent = '不正解…';
+    document.getElementById('feedback-wrong-sub').textContent = 'もう一度チャレンジ！';
+    setTimeout(() => {
+      btn.classList.remove('wrong');
+      document.getElementById('feedback-box').classList.add('hidden');
+    }, 700);
+  }
+}
+
+function showExplanation(q) {
+  if (q.tricky) {
+    document.getElementById('correction-display').textContent = '✓ 修正不要。この文は正しいです。';
+  } else {
+    const wrongParticle = q.parts.find(p => typeof p === 'object' && p.wrong)?.p || '？';
+    const correctedParts = q.parts.map(part => {
+      if (typeof part === 'string') return part;
+      return part.wrong ? q.correct : part.p;
+    }).join('');
+    document.getElementById('correction-display').textContent =
+      `「${wrongParticle}」→「${q.correct}」：${correctedParts}`;
+  }
+  document.getElementById('explanation-display').textContent = q.explanation;
+  document.getElementById('explanation-panel').classList.remove('hidden');
+  document.getElementById('btn-next').classList.remove('hidden');
+}
+
+// ==================== RESULT SCREEN ====================
+function showResult() {
+  document.getElementById('result-score').textContent = state.score;
+  document.getElementById('result-total').textContent = state.questions.length;
+
+  const pct = state.score / state.questions.length;
+  let emoji, msg;
+  if (pct >= 0.9) { emoji = '🏆'; msg = '完璧！素晴らしい探偵力です！'; }
+  else if (pct >= 0.7) { emoji = '🎉'; msg = 'よくできました！もう少しで完璧！'; }
+  else if (pct >= 0.5) { emoji = '💪'; msg = 'もう少し！練習すれば絶対上手くなる！'; }
+  else { emoji = '📚'; msg = 'もう一度チャレンジしてみよう！'; }
+
+  document.getElementById('result-emoji').textContent = emoji;
+  document.getElementById('result-message').textContent = msg;
+
+  const list = document.getElementById('result-list');
+  list.innerHTML = '';
+  state.history.forEach((item, i) => {
+    const wrongParticle = item.q.parts.find(p => typeof p === 'object' && p.wrong)?.p;
+    const sentence = item.q.parts.map(p => typeof p === 'string' ? p : p.p).join('');
+    const row = document.createElement('div');
+    row.className = 'result-row border-b border-gray-100 pb-3';
+    row.style.animationDelay = `${i * 0.05}s`;
+
+    let changeText = '';
+    if (item.q.tricky) {
+      changeText = `<span class="text-green-600">✓ 正しい文</span>`;
+    } else if (wrongParticle) {
+      changeText = `<span class="text-indigo-500">「${wrongParticle}」→「${item.q.correct}」</span>`;
+    }
+
+    row.innerHTML = `
+      <div class="flex items-start gap-2 text-sm mb-1">
+        <span class="text-base mt-0.5 flex-shrink-0">${item.correct ? '✅' : '❌'}</span>
+        <div>
+          <p class="text-gray-800 font-bold">${sentence}</p>
+          <p class="text-xs mt-0.5">${changeText}</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 pl-7 leading-relaxed">${item.q.explanation}</p>
+    `;
+    list.appendChild(row);
+  });
+
+  // 助詞別スコア
+  showParticleScore();
+
+  // 復習ボタン
+  const wrongCount = state.history.filter(h => !h.correct).length;
+  const retryBtn = document.getElementById('btn-retry-modal');
+  if (wrongCount > 0) {
+    retryBtn.textContent = `❌ 復習する (${wrongCount}問)`;
+    retryBtn.classList.remove('hidden');
+  } else {
+    retryBtn.classList.add('hidden');
+  }
+
+  show('screen-result');
+}
+
+// ==================== START GAME ====================
+function startGame() {
+  state.questions = shuffle(QUESTIONS[state.level]).slice(0, 10);
+  state.current = 0;
+  state.score = 0;
+  state.history = [];
+  state.answered = false;
+  state.hadWrong = false;
+
+  const levelNames = { beginner: '初級 (N5)', intermediate: '中級 (N4)', advanced: '上級 (N3)' };
+  document.getElementById('level-badge').textContent = levelNames[state.level];
+  document.getElementById('total-display').textContent = state.questions.length;
+
+  show('screen-game');
+  renderQuestion();
+}
+
+// ==================== TUTORIAL ====================
+function maybeShowTutorial(callback) {
+  if (localStorage.getItem('joshi_tutorial_seen')) {
+    callback();
+  } else {
+    document.getElementById('modal-tutorial').classList.remove('hidden');
+    document.getElementById('btn-tutorial-start')._callback = callback;
+  }
+}
+
+// ==================== SHOW RESULT (with particle score) ====================
+function showParticleScore() {
+  const tally = {};
+  state.history.forEach(item => {
+    if (item.q.tricky) return; // skip correct-sentence questions
+    const key = item.q.correct;
+    if (!tally[key]) tally[key] = { correct: 0, total: 0 };
+    tally[key].total++;
+    if (item.correct) tally[key].correct++;
+  });
+  const list = document.getElementById('particle-score-list');
+  list.innerHTML = '';
+  if (Object.keys(tally).length === 0) {
+    document.getElementById('particle-score-box').classList.add('hidden');
+    return;
+  }
+  document.getElementById('particle-score-box').classList.remove('hidden');
+  Object.entries(tally).sort((a,b) => a[1].correct/a[1].total - b[1].correct/b[1].total).forEach(([p, t]) => {
+    const pct = Math.round((t.correct / t.total) * 100);
+    const color = pct >= 80 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+    const row = document.createElement('div');
+    row.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="font-black text-indigo-600 w-8 text-center text-base">${p}</span>
+        <div class="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+          <div class="h-full rounded-full transition-all" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <span class="text-xs font-bold w-12 text-right" style="color:${color}">${t.correct}/${t.total}</span>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+// ==================== EVENT LISTENERS ====================
+document.querySelectorAll('.level-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.level = btn.dataset.level;
+  });
+});
+
+document.getElementById('btn-furigana-toggle').addEventListener('click', () => {
+  state.furigana = !state.furigana;
+  const knob = document.getElementById('furigana-knob');
+  const toggle = document.getElementById('btn-furigana-toggle');
+  const label = document.getElementById('furigana-label');
+  if (state.furigana) {
+    knob.style.transform = 'translateX(1.5rem)';
+    toggle.style.background = '#6366f1';
+    label.textContent = 'ON';
+  } else {
+    knob.style.transform = 'translateX(0.25rem)';
+    toggle.style.background = '#d1d5db';
+    label.textContent = 'OFF';
+  }
+});
+
+document.getElementById('btn-start').addEventListener('click', () => maybeShowTutorial(startGame));
+document.getElementById('btn-step1-ok').addEventListener('click', () => handleStep1(true));
+document.getElementById('btn-step1-ng').addEventListener('click', () => handleStep1(false));
+
+document.getElementById('btn-next').addEventListener('click', () => {
+  state.current++;
+  if (state.current >= state.questions.length) {
+    showResult();
+  } else {
+    renderQuestion();
+  }
+});
+
+document.getElementById('btn-quit').addEventListener('click', () => {
+  if (confirm('ゲームをやめますか？')) show('screen-start');
+});
+
+document.getElementById('btn-retry').addEventListener('click', startGame);
+document.getElementById('btn-home').addEventListener('click', () => show('screen-start'));
+
+// Tutorial modal
+document.getElementById('btn-tutorial-start').addEventListener('click', () => {
+  document.getElementById('modal-tutorial').classList.add('hidden');
+  const cb = document.getElementById('btn-tutorial-start')._callback;
+  if (cb) cb();
+});
+document.getElementById('btn-tutorial-skip').addEventListener('click', () => {
+  localStorage.setItem('joshi_tutorial_seen', '1');
+  document.getElementById('modal-tutorial').classList.add('hidden');
+  const cb = document.getElementById('btn-tutorial-start')._callback;
+  if (cb) cb();
+});
+
+// Retry wrong answers
+document.getElementById('btn-retry-modal').addEventListener('click', () => {
+  const wrongQs = state.history.filter(h => !h.correct).map(h => h.q);
+  document.getElementById('modal-retry').classList.remove('hidden');
+  document.getElementById('retry-count-msg').textContent =
+    `間違えた ${wrongQs.length} 問を復習します`;
+  document.getElementById('btn-retry-wrong')._questions = wrongQs;
+});
+document.getElementById('btn-retry-wrong').addEventListener('click', () => {
+  const qs = document.getElementById('btn-retry-wrong')._questions || [];
+  document.getElementById('modal-retry').classList.add('hidden');
+  state.questions = shuffle(qs);
+  state.current = 0; state.score = 0; state.history = [];
+  state.answered = false; state.hadWrong = false;
+  document.getElementById('level-badge').textContent = '復習モード';
+  document.getElementById('total-display').textContent = state.questions.length;
+  show('screen-game');
+  renderQuestion();
+});
+document.getElementById('btn-retry-close').addEventListener('click', () => {
+  document.getElementById('modal-retry').classList.add('hidden');
+});
+</script>
+</body>
+</html>
